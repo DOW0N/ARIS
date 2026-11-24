@@ -1,0 +1,9 @@
+jira.env
+runs/
+artifacts/
+results.json
+__pycache__/
+*_결과_*.xlsx
+build/
+dist/
+*.spec

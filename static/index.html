@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARIS</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1' y='1' width='30' height='30' rx='8' fill='%23fff' stroke='%231E3A8A' stroke-width='2'/%3E%3Cpath d='M8.5 24.5 L16 7.5 L23.5 24.5' stroke='%231E3A8A' stroke-width='3.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M11.5 18.6 L14.6 21.4 L21.2 15' stroke='%23E0A800' stroke-width='3.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --navy: #1E3A8A; --navy-ink: #172554; --yellow: #FFC93C; --yellow-deep: #E0A800; --yellow-bg: #FFFBEB;
+    --bg: #F7F7F4; --panel: #FFFFFF; --line: #E7E5E4; --ink: #111827; --muted: #4B5563; --soft: #F3F4F6;
+    --pass: #15803D; --pass-bg: #DCFCE7; --pass-bar: #16A34A;
+    --fail: #B91C1C; --fail-bg: #FEE2E2; --fail-bar: #DC2626; --fail-card: #FFF7F7; --fail-line: #FECACA;
+    --run: #1E40AF; --run-bg: #DBEAFE; --warn: #9A3412; --warn-bg: #FFEDD5;
+    --trend: #DBE3F4; --nav-active-ink: #FFFFFF;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --navy: #8EA2F0; --navy-ink: #B9C6F7; --yellow: #FFC93C; --yellow-deep: #FFC93C; --yellow-bg: #2B2414;
+      --bg: #0F1320; --panel: #171C2B; --line: #283044; --ink: #E6E8EE; --muted: #A3ABBD; --soft: #1E2435;
+      --pass: #5FD08A; --pass-bg: #173323; --pass-bar: #34A866;
+      --fail: #FF8A75; --fail-bg: #3A1D18; --fail-bar: #E0533F; --fail-card: #22181C; --fail-line: #4A2A2A;
+      --run: #8AA4FF; --run-bg: #1C2645; --warn: #F5A962; --warn-bg: #3A2614;
+      --trend: #283454; --nav-active-ink: #0F1320;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.5 "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+  a { color: var(--navy); }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible, a:focus-visible, .drop:focus-visible { outline: 3px solid var(--yellow-deep); outline-offset: 2px; }
+  .mono { font-family: var(--mono); }
+
+  .app { display: flex; min-height: 100vh; }
+  .side { width: 232px; flex: none; background: var(--panel); border-right: 1px solid var(--line);
+          padding: 24px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 22px; text-decoration: none; color: inherit; }
+  .brand b { display: block; font-size: 18px; letter-spacing: .05em; color: var(--navy); }
+  .brand small { display: block; font-size: 11px; color: var(--muted); }
+  .nav a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 14px 11px 28px;
+           border-radius: 12px; color: var(--ink); text-decoration: none; position: relative; }
+  .nav a:hover { background: var(--soft); }
+  .nav a[aria-current="page"] { background: var(--navy); color: var(--nav-active-ink); font-weight: 700; }
+  .nav a[aria-current="page"]::before { content: ""; position: absolute; left: 14px; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+  .nav .soon { font-size: 11px; color: var(--muted); }
+  .nav a[aria-current="page"] .soon { color: inherit; opacity: .8; }
+  .badge { padding: 0 8px; border-radius: 99px; background: var(--yellow); color: #172554; font-size: 12px; font-weight: 700; line-height: 20px; }
+  .jira { margin-top: auto; padding: 14px; border-radius: 14px; font-size: 12px; line-height: 1.6; }
+  .jira.on { background: var(--pass-bg); color: var(--pass); }
+  .jira.off { background: var(--yellow-bg); color: var(--warn); }
+
+  main { flex: 1; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .head p { margin: 0 0 4px; font-size: 13px; color: var(--muted); }
+  .head h1 { margin: 0; font-size: 24px; color: var(--navy); }
+  .btn { height: 44px; padding: 0 22px; border: 0; border-radius: 99px; font-size: 14px; font-weight: 700; }
+  .btn.yellow { background: var(--yellow); color: #172554; box-shadow: 0 2px 0 rgba(30,58,138,.15); }
+  .btn.navy { background: var(--navy); color: var(--nav-active-ink); }
+  .btn.ghost { height: 40px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); font-weight: 500; font-size: 13px; }
+  .msg { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--fail-bg); color: var(--fail); font-size: 13px; }
+
+  .grid-top { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+  .hero { border-radius: 18px; background: #1E3A8A; padding: 22px; display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; }
+  .hero::after { content: ""; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: var(--yellow); opacity: .18; pointer-events: none; }
+  .hero h2 { margin: 0; font-size: 18px; line-height: 1.4; color: #FFFFFF; }
+  .drop { position: relative; z-index: 1; border: 2px dashed var(--yellow); border-radius: 14px; background: var(--panel); padding: 18px 20px;
+          display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+  .drop.over { background: var(--yellow-bg); }
+  .drop strong { display: block; font-size: 15px; }
+  .drop small { font-size: 13px; color: var(--muted); }
+  .kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .kpi p { margin: 0; font-size: 13px; color: var(--muted); }
+  .kpi b { display: block; margin-top: 6px; font-size: 28px; font-family: var(--mono); }
+  .kpi.review { background: var(--yellow-bg); border-color: var(--yellow); }
+
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card.alert { background: var(--fail-card); border-color: var(--fail-line); }
+  .card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .card-top span:first-child { font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip { flex: none; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .chip.pass { background: var(--pass-bg); color: var(--pass); } .chip.fail { background: var(--fail-bg); color: var(--fail); }
+  .chip.run { background: var(--run-bg); color: var(--run); } .chip.warn { background: var(--warn-bg); color: var(--warn); }
+  .chip.idle { background: var(--soft); color: var(--muted); }
+  .bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; }
+  .counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; font-family: var(--mono); }
+  .note { margin: 0; font-size: 13px; color: var(--muted); }
+  .trend { margin-top: auto; display: flex; align-items: flex-end; gap: 6px; height: 56px; }
+  .trend i { flex: 1; background: var(--trend); border-radius: 4px; min-height: 4px; }
+  .trend i:last-child { background: var(--navy); border-top: 4px solid var(--yellow); }
+  .fail-item { padding: 10px 12px; border-radius: 12px; background: var(--panel); display: flex; flex-direction: column; gap: 3px; }
+  .fail-item span { font-size: 13px; font-weight: 500; }
+  .fail-item small { font-size: 12px; color: var(--fail); font-family: var(--mono); overflow-wrap: anywhere; }
+  .empty { padding: 48px 20px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 18px; }
+  .empty strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; }
+
+  /* 실행 화면 */
+  .runs { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; min-width: 0; }
+  .panel h2 { margin: 0; padding: 14px 18px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .history { list-style: none; margin: 0; padding: 6px; max-height: 70vh; overflow: auto; }
+  .history button { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 10px 12px; border-radius: 12px; cursor: pointer; }
+  .history button:hover { background: var(--soft); }
+  .history button[aria-current="true"] { background: var(--yellow-bg); box-shadow: inset 3px 0 0 var(--yellow); }
+  .history button:focus-visible { outline: 3px solid var(--yellow-deep); }
+  .h-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .h-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .d-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .d-head h3 { margin: 0; font-size: 17px; overflow-wrap: anywhere; }
+  .spacer { flex: 1; }
+  .btn[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+  .tile { background: var(--panel); padding: 14px 18px; }
+  .tile b { display: block; font-size: 24px; font-family: var(--mono); }
+  .tile span { color: var(--muted); font-size: 12px; }
+  .progress { height: 4px; background: var(--line); } .progress div { height: 100%; background: var(--yellow); transition: width .3s; }
+  .filters { display: flex; gap: 6px; padding: 12px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .filters button { padding: 6px 14px; border-radius: 99px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 12px; }
+  .filters button[aria-pressed="true"] { background: var(--navy); color: var(--nav-active-ink); border-color: var(--navy); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 11px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { white-space: nowrap; font-size: 12px; color: var(--muted); font-weight: 500; }
+  td.id { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  td.type { color: var(--muted); white-space: nowrap; }
+  .reason { margin: 6px 0 0; padding: 0; list-style: none; color: var(--fail); font-size: 12.5px; font-family: var(--mono); overflow-wrap: anywhere; }
+  .reason.w { color: var(--warn); } .reason.c { color: var(--run); }
+  .meta { margin-top: 4px; color: var(--muted); font-size: 12.5px; }
+  .shot { margin-top: 8px; } .shot img { max-width: 360px; width: 100%; border: 1px solid var(--line); border-radius: 8px; display: block; }
+  .soon-box { padding: 40px; display: flex; flex-direction: column; gap: 10px; }
+  .soon-box h2 { margin: 0; padding: 0; border: 0; font-size: 18px; color: var(--ink); }
+  .soon-box p { margin: 0; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px 16px; padding: 22px; font-size: 14px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+  @media (max-width: 1080px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .side { width: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px; }
+    .brand { padding: 0 0 10px; }
+    .nav { display: flex; gap: 4px; overflow-x: auto; }
+    .nav a { padding: 8px 12px; white-space: nowrap; }
+    .nav a[aria-current="page"]::before, .nav .soon { display: none; }
+    .jira { display: none; }
+    main { padding: 18px 16px; }
+    .grid-top, .runs { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    th, td { padding: 9px 10px; }
+    .drop { flex-direction: column; align-items: stretch; }
+  }
+  .toast { position: fixed; right: 24px; bottom: 24px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-left: 5px solid var(--pass-bar); border-radius: 12px; padding: 14px 44px 14px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  .toast.fail { border-left-color: var(--fail-bar); }
+  .toast b { display: block; font-size: 15px; }
+  .toast p { margin: 4px 0 8px; color: var(--muted); font-size: 13px; }
+  .toast a { color: var(--navy); font-weight: 700; font-size: 13px; }
+  .toast button { position: absolute; top: 8px; right: 8px; border: 0; background: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; padding: 4px 8px; }
+  @media (max-width: 760px) { .toast { right: 16px; bottom: 16px; } }
+  /* TC 검토 */
+  .rv-drop { margin: 18px; }
+  .rv td { font-size: 13.5px; }
+  .rv .orig { margin-top: 6px; color: var(--muted); font-size: 12.5px; white-space: pre-line; }
+  .rv .orig b { color: var(--ink); font-weight: 600; }
+  .rv pre { margin: 0; font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .rv textarea { width: 100%; box-sizing: border-box; min-height: 64px; font: 12.5px/1.5 var(--mono); color: var(--ink); background: var(--soft);
+    border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; resize: vertical; }
+  .rv textarea:focus-visible { outline: 3px solid var(--yellow); outline-offset: 1px; }
+  .rv label.sm { display: block; font-size: 11.5px; color: var(--muted); margin: 6px 0 3px; }
+  .rv .notes { margin: 6px 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
+  .rv .take { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+  .rv .take input { width: 18px; height: 18px; accent-color: var(--navy); }
+  .rv-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--yellow-bg); }
+  .rv-bar p { margin: 0; flex: 1; min-width: 200px; font-size: 13px; }
+  .modal { border: 0; padding: 0; border-radius: 20px; width: min(440px, calc(100vw - 32px)); background: var(--panel); color: var(--ink);
+    box-shadow: 0 24px 60px rgba(0,0,0,.25); }
+  .modal::backdrop { background: rgba(17,24,39,.45); backdrop-filter: blur(2px); }
+  .modal form { padding: 28px 28px 22px; }
+  .modal .m-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--fail-bg); color: var(--fail); display: grid; place-items: center; margin-bottom: 16px; }
+  .modal h2 { margin: 0 0 6px; font-size: 19px; }
+  .modal .m-sub { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  .modal .m-file { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+  .modal .m-file b { display: block; font-size: 14px; word-break: break-all; }
+  .modal .m-file span { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .modal ul { margin: 0 0 6px; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .modal .m-err { color: var(--fail); font-size: 13px; margin: 8px 0 0; }
+  .modal .m-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  .btn.danger { background: var(--fail-bar); color: #fff; }
+  .btn.danger:focus-visible, .modal .btn.ghost:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <a class="brand" href="#/dashboard" aria-label="ARIS 대시보드">
+      <svg width="36" height="36" viewBox="0 0 32 32" aria-hidden="true"><rect x="0.75" y="0.75" width="30.5" height="30.5" rx="8.5" fill="#FFFFFF" stroke="#1E3A8A" stroke-width="1.5"></rect><path d="M8.5 24.5 L16 7.5 L23.5 24.5" stroke="#1E3A8A" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path><path d="M11.5 18.6 L14.6 21.4 L21.2 15" stroke="#E0A800" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <span><b>ARIS</b><small>Automated Run &amp; Issue System</small></span>
+    </a>
+    <nav class="nav" aria-label="주 메뉴" id="nav">
+      <a href="#/dashboard" data-view="dashboard">대시보드</a>
+      <a href="#/runs" data-view="runs">실행</a>
+      <a href="#/review" data-view="review">TC 검토 <span class="badge" id="review-badge" hidden>0</span></a>
+      <a href="#/issues" data-view="issues">이슈 <span class="soon">준비 중</span></a>
+      <a href="#/reports" data-view="reports">리포트 <span class="soon">준비 중</span></a>
+      <a href="#/settings" data-view="settings">설정</a>
+    </nav>
+    <div class="jira off" id="jira">Jira 확인 중</div>
+  </aside>
+  <main id="main" aria-live="polite"></main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<dialog class="modal" id="ask" aria-labelledby="ask-title">
+  <form method="dialog">
+    <div class="m-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></div>
+    <h2 id="ask-title">실행 기록을 지울까요?</h2>
+    <p class="m-sub">지운 기록은 되돌릴 수 없어요.</p>
+    <div class="m-file"><b id="ask-name"></b><span id="ask-meta"></span></div>
+    <ul><li>결과 엑셀</li><li>실패·통과 화면 캡처</li><li>실행 이력과 대시보드 숫자</li></ul>
+    <p class="m-err" id="ask-err" role="alert" hidden></p>
+    <div class="m-btns">
+      <button class="btn ghost" value="cancel" formnovalidate>취소</button>
+      <button class="btn danger" value="ok" id="ask-ok">기록 삭제</button>
+    </div>
+  </form>
+</dialog>
+<input type="file" id="file" accept=".xlsx" hidden>
+<input type="file" id="rfile" accept=".xlsx" hidden>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const TYPE = { web: "웹", app: "앱", api: "API", script: "스크립트" };
+const STATUS = { queued: ["대기", "idle"], running: ["실행 중", "run"], done: ["완료", "pass"], error: ["오류", "fail"] };
+let info = { jira: false, jira_url: null }, runs = [], current = null, filter = "all", timer = null, msg = "";
+const detailCache = {};
+
+// ---- 공통 ----
+const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : 0);
+const failed = (r) => r.done - r.passed;
+const short = (s = "", n = 60) => (s.length > n ? s.slice(0, n) + "…" : s);
+function duration(r) {
+  if (!r.started) return "";
+  const end = r.finished ? new Date(r.finished) : new Date();
+  const s = Math.max(0, Math.round((end - new Date(r.started)) / 1000));
+  return s >= 60 ? `${Math.floor(s / 60)}분 ${s % 60}초` : `${s}초`;
+}
+function chipOf(r) {
+  if (r.status === "done" && failed(r) > 0) return ["실패 있음", "fail"];
+  return STATUS[r.status] || ["-", "idle"];
+}
+// 새로고침 직후 첫 요청이 연결 단계에서 끊기는 경우가 있어(서버 로그에도 안 남음), 네트워크 오류만 짧게 재시도
+async function get(url, tries = 3) {
+  for (let i = 1; ; i++) {
+    try { return await fetch(url); }
+    catch (e) { if (i >= tries) throw e; await new Promise((ok) => setTimeout(ok, 400 * i)); }
+  }
+}
+async function json(r) {  // 서버 오류(500 등)를 '응답이 JSON이 아님'이 아닌 알아볼 수 있는 이유로
+  if (!r.ok) throw new Error(`서버 응답 ${r.status} (${r.url.replace(location.origin, "")}) · ARIS 터미널 창의 오류를 확인하세요`);
+  return r.json();
+}
+function latestPerFile() {
+  const seen = new Set();
+  return runs.filter((r) => !seen.has(r.filename) && seen.add(r.filename));
+}
+async function detail(id, status) {
+  const key = id + status;
+  if (!detailCache[key]) detailCache[key] = get(`/api/runs/${id}`).then(json)
+    .catch((e) => { delete detailCache[key]; throw e; });  // 한 번 실패한 응답을 계속 재사용하지 않게
+  return detailCache[key];
+}
+
+// ---- 완료 알림: 알림음 + 화면 팝업 + (다른 창을 보고 있으면) 데스크톱 알림 ----
+let audio = null;
+const watching = new Set();
+function armSound() {  // 브라우저는 사용자가 한 번 누른 뒤에만 소리를 허용함
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch (e) { audio = null; }
+}
+document.addEventListener("pointerdown", armSound, { once: true });
+function chime(ok) {
+  if (!audio) return;
+  (ok ? [660, 880, 1320] : [520, 390]).forEach((f, i) => {
+    const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i * 0.18;
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.connect(g).connect(audio.destination);
+    o.start(t); o.stop(t + 0.4);
+  });
+}
+function announce(r) {
+  const err = r.status === "error", bad = err || failed(r) > 0;
+  const title = err ? "ARIS 실행 오류" : "ARIS 검증 완료";
+  const body = err ? `${r.filename} 실행 중 오류가 났어요` : `${r.filename} · 통과 ${r.passed} / 실패 ${failed(r)}${r.started ? " · " + duration(r) : ""}`;
+  chime(!bad);
+  const t = $("#toast");
+  t.className = "toast" + (bad ? " fail" : "");
+  t.innerHTML = `<b>${esc(title)}</b><p>${esc(body)}</p><a href="#/runs/${esc(r.id)}">결과 보기</a><button type="button" aria-label="알림 닫기">×</button>`;
+  t.hidden = false;
+  if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+    const n = new Notification(title, { body, tag: "aris-" + r.id });
+    n.onclick = () => { window.focus(); location.hash = `#/runs/${r.id}`; n.close(); };
+  }
+}
+$("#toast").addEventListener("click", (e) => { if (e.target.closest("button, a")) $("#toast").hidden = true; });
+
+// ---- 업로드 ----
+const input = $("#file");
+input.addEventListener("change", () => input.files[0] && upload(input.files[0]));
+async function upload(file) {
+  armSound();
+  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  msg = "";
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch("/api/runs", { method: "POST", body: fd });
+  const body = await r.json().catch(() => ({ error: "업로드 실패" }));
+  input.value = "";
+  if (!r.ok) { msg = body.error; render(); return; }
+  current = body.id;
+  filter = "all";
+  location.hash = `#/runs/${body.id}`;
+}
+function bindDrop(el, onFile = upload, picker = input) {
+  if (!el) return;
+  el.addEventListener("click", () => picker.click());
+  el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); picker.click(); } });
+  ["dragenter", "dragover"].forEach((t) => el.addEventListener(t, (e) => { e.preventDefault(); el.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => el.addEventListener(t, (e) => { e.preventDefault(); el.classList.remove("over"); }));
+  el.addEventListener("drop", (e) => e.dataTransfer.files[0] && onFile(e.dataTransfer.files[0]));
+}
+
+function head(sub, title, extra = "") {
+  return `<div class="head"><div><p>${esc(sub)}</p><h1>${esc(title)}</h1></div>${extra}
+    <button type="button" class="btn yellow" data-act="pick">+ 새 실행</button></div>
+    ${msg ? `<p class="msg" role="alert">${esc(msg)}</p>` : ""}`;
+}
+
+// 실행 중 1.5초마다 다시 그릴 때, 바뀐 게 없으면 화면을 건드리지 않는다(그림 재요청·스크롤 튐 방지)
+let lastMain = "", lastNode = null;  // lastNode: 다른 화면(검토·설정)이 #main을 바꿨는지 알아보는 표시
+function setMain(html) {
+  if (html === lastMain && $("#main").firstElementChild === lastNode) return false;
+  const hist = $(".history"), top = hist ? hist.scrollTop : 0;
+  $("#main").innerHTML = lastMain = html;
+  lastNode = $("#main").firstElementChild;
+  if ($(".history")) $(".history").scrollTop = top;
+  return true;
+}
+
+// ---- 대시보드 ----
+async function renderDashboard() {
+  const latest = latestPerFile();
+  const sum = (k) => latest.reduce((a, r) => a + (typeof k === "function" ? k(r) : r[k] || 0), 0);
+  const done = sum("done"), pass = sum("passed");
+  const fails = [];
+  for (const r of latest.slice(0, 4)) {
+    if (failed(r) === 0) continue;
+    const d = await detail(r.id, r.status + r.done);
+    for (const x of d.results) if (!x.passed) fails.push({ ...x, file: r.filename });
+  }
+  const card = (r) => {
+    const [label, cls] = chipOf(r);
+    const total = r.total || 0, nt = r.invalid + r.skipped;
+    const hist = runs.filter((x) => x.filename === r.filename && x.done).slice(0, 7).reverse();
+    const left = Math.max(0, total - r.done);
+    return `<article class="card">
+      <div class="card-top"><span title="${esc(r.filename)}">${esc(r.filename)}</span><span class="chip ${cls}">${label}</span></div>
+      <div class="bar" role="img" aria-label="통과 ${r.passed}, 실패 ${failed(r)}, 전체 ${total}">
+        <i style="width:${pct(r.passed, total)}%;background:var(--pass-bar)"></i><i style="width:${pct(failed(r), total)}%;background:var(--fail-bar)"></i></div>
+      <div class="counts"><span style="color:var(--pass)">OK ${r.passed}</span><span style="color:var(--fail)">NG ${failed(r)}</span>
+        <span style="color:var(--muted)">${r.status === "running" || r.status === "queued" ? `남음 ${left}` : `N/T ${nt}`}</span></div>
+      <p class="note">${esc(duration(r))}${r.issues ? ` · 이슈 ${r.issues}건 등록` : ""}${r.convert ? ` · 변환 필요 ${r.convert}` : ""}</p>
+      ${hist.length > 1 ? `<div class="trend" role="img" aria-label="최근 ${hist.length}회 통과율 추이">${hist.map((x) => `<i style="height:${Math.max(6, pct(x.passed, x.done))}%"></i>`).join("")}</div>`
+        : `<button type="button" class="btn ghost" data-run="${esc(r.id)}" style="margin-top:auto">실행 화면 보기</button>`}
+    </article>`;
+  };
+  const alertCard = `<article class="card alert">
+      <div class="card-top"><span>확인이 필요해요</span><span class="chip fail">실패 ${sum(failed)}</span></div>
+      ${fails.slice(0, 3).map((f) => `<div class="fail-item"><span>${esc(f.name)}</span>
+        <small>${esc(f.id)} · ${esc(short(f.errors[0]))}${f.issue ? " · " + esc(f.issue) : ""}</small></div>`).join("")}
+      <a href="#/runs/${esc(latest.find((r) => failed(r))?.id || "")}" style="margin-top:auto;font-size:13px;font-weight:700">실패 모두 보기 →</a>
+    </article>`;
+  if (setMain(`${head("마지막 실행 기준 · 파일별 최신 결과", "실행 현황")}
+    <div class="grid-top">
+      <section class="hero"><h2>TC 엑셀을 올리면 실행부터 이슈 등록까지 ARIS가 해요</h2>
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="엑셀 TC 파일 올리기">
+          <div><strong>파일을 끌어다 놓으세요</strong><small>평소 쓰던 양식 그대로 · .xlsx</small></div>
+          <span class="btn navy" style="display:inline-flex;align-items:center">파일 고르기</span></div>
+        <a href="/template" style="position:relative;z-index:1;color:#FFE08A;font-size:13px">TC 템플릿 받기</a></section>
+      <div class="kpis">
+        <div class="kpi"><p>통과율</p><b style="color:var(--pass)">${done ? pct(pass, done) + "%" : "-"}</b></div>
+        <div class="kpi"><p>실패</p><b style="color:var(--fail)">${sum(failed)}</b></div>
+        <div class="kpi"><p>등록된 이슈</p><b style="color:var(--navy)">${info.jira ? sum("issues") : "dry-run"}</b></div>
+        <div class="kpi review"><p style="color:var(--warn)">검토 대기 (변환 필요)</p><b style="color:var(--navy)">${sum("convert")}</b></div>
+      </div>
+    </div>
+    ${latest.length ? `<div class="cards">${latest.slice(0, sum(failed) ? 5 : 6).map(card).join("")}${sum(failed) ? alertCard : ""}</div>`
+      : `<div class="empty"><strong>아직 실행한 TC가 없어요</strong>위의 영역에 엑셀 TC 파일을 올리면 바로 실행돼요</div>`}`)) bindDrop($("#drop"));
+}
+
+// ---- 실행 ----
+function rowsOf(run) {
+  const done = Object.fromEntries(run.results.map((r) => [r.id, r]));
+  const rows = run.cases.map((c) => done[c.id] ? { ...done[c.id], state: done[c.id].passed ? "pass" : "fail" }
+                                                 : { ...c, state: run.status === "running" ? "wait" : "skip", errors: [] });
+  return rows.concat(run.invalid.map((b) => ({ id: b.id, type: null, name: `${b.row}행`, state: b.convert ? "convert" : "invalid", errors: [b.error] })),
+                     (run.skipped || []).map((b) => ({ id: b.id, type: null, name: `${b.name} (실행=N)`, state: "skip", errors: [] })));
+}
+async function renderRuns() {
+  if (!current && runs.length) current = runs[0].id;
+  const list = runs.map((r) => {
+    const [label, cls] = chipOf(r);
+    const sub = r.total == null ? r.created.replace("T", " ")
+      : `${r.created.replace("T", " ")} · ${r.passed}/${r.total} 통과${r.invalid ? ` · 확인 ${r.invalid}` : ""}`;
+    return `<li><button data-run="${esc(r.id)}" aria-current="${r.id === current}">
+      <div class="h-top"><span class="h-name">${esc(r.filename)}</span><span class="chip ${cls}">${label}</span></div>
+      <div class="h-sub">${esc(sub)}</div></button></li>`;
+  }).join("") || `<li class="note" style="padding:20px">아직 실행 이력이 없어요</li>`;
+  let detailHtml = `<div class="empty" style="border:0"><strong>실행을 골라주세요</strong>왼쪽 목록에서 실행을 선택하면 결과가 보여요</div>`;
+  if (current) {
+    const r = await get(`/api/runs/${current}`);
+    if (r.ok) detailHtml = detailOf(await r.json());
+  }
+  setMain(`${head("파일별 실행 기록", "실행")}
+    <div class="runs"><section class="panel"><h2>실행 이력</h2><ul class="history">${list}</ul></section>
+    <section class="panel">${detailHtml}</section></div>`);
+}
+function detailOf(run) {
+  const rows = rowsOf(run);
+  const n = { all: rows.length, fail: rows.filter((r) => r.state === "fail").length,
+              invalid: rows.filter((r) => r.state === "invalid" || r.state === "convert").length, pass: rows.filter((r) => r.state === "pass").length };
+  const total = run.total ?? 0, p = total ? Math.round(run.results.length / total * 100) : (run.status === "done" ? 100 : 0);
+  const [label, cls] = STATUS[run.status];
+  const BADGE = { pass: ["OK", "pass"], fail: ["NG", "fail"], invalid: ["작성 오류", "warn"], convert: ["변환 필요", "run"], wait: ["대기", "idle"], skip: ["미실행", "idle"] };
+  const shown = rows.filter((r) => filter === "all" || r.state === filter || (filter === "invalid" && r.state === "convert"));
+  return `<div class="d-head"><h3>${esc(run.filename)}</h3><span class="chip ${cls}">${label}</span><div class="spacer"></div>
+      <button type="button" class="btn ghost" data-act="delete" data-id="${esc(run.id)}" ${run.status === "queued" || run.status === "running" ? 'aria-disabled="true"' : ""}>기록 삭제</button>
+      <a class="btn navy" style="display:inline-flex;align-items:center;text-decoration:none" href="/runs/${esc(run.id)}/output" aria-disabled="${!run.output}">결과 엑셀 받기</a></div>
+    <div class="tiles">
+      <div class="tile"><b>${total}</b><span>실행 대상</span></div>
+      <div class="tile"><b style="color:var(--pass)">${n.pass}</b><span>통과</span></div>
+      <div class="tile"><b style="color:var(--fail)">${n.fail}</b><span>실패 · 이슈 대상</span></div>
+      <div class="tile"><b style="color:var(--warn)">${n.invalid}</b><span>작성 오류 · 변환 필요</span></div>
+    </div>
+    <div class="progress" role="progressbar" aria-label="진행률" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100"><div style="width:${p}%"></div></div>
+    ${run.error ? `<p class="msg" style="margin:14px 18px">${esc(run.error)}</p>` : ""}
+    <div class="filters" role="group" aria-label="결과 필터">
+      ${[["all", "전체"], ["fail", "실패"], ["invalid", "작성 오류·변환 필요"], ["pass", "통과"]]
+        .map(([k, t]) => `<button type="button" data-f="${k}" aria-pressed="${filter === k}">${t} ${n[k]}</button>`).join("")}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>TC ID</th><th>유형</th><th>테스트 항목</th><th>결과</th><th>이슈</th></tr></thead>
+      <tbody>${shown.length ? shown.map((r) => `
+        <tr><td class="id">${esc(r.id)}</td><td class="type">${esc(TYPE[r.type] ?? "-")}</td>
+          <td>${esc(r.name)}
+            ${r.errors.length ? `<ul class="reason ${r.state === "invalid" ? "w" : r.state === "convert" ? "c" : ""}">${r.errors.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
+            ${r.issue_error ? `<ul class="reason w"><li>${esc(r.issue_error)}</li></ul>` : ""}
+            ${r.state === "pass" && r.step_count ? `<div class="meta">${r.step_count}단계 모두 통과</div>` : ""}
+            ${r.screenshot && r.state === "pass" ? `<div class="meta"><a href="/runs/${esc(run.id)}/shot/${esc(r.screenshot)}" target="_blank">통과 화면 보기</a></div>` : ""}
+            ${r.screenshot && r.state !== "pass" ? `<div class="shot"><a href="/runs/${esc(run.id)}/shot/${esc(r.screenshot)}" target="_blank">
+              <img src="/runs/${esc(run.id)}/shot/${esc(r.screenshot)}" alt="${esc(r.id)} 실패 화면" loading="lazy"></a></div>` : ""}</td>
+          <td><span class="chip ${BADGE[r.state][1]}">${BADGE[r.state][0]}</span></td>
+          <td>${r.issue ? (info.jira_url ? `<a href="${esc(info.jira_url)}/browse/${esc(r.issue)}" target="_blank">${esc(r.issue)}</a>` : esc(r.issue))
+                        : r.issue_error ? `<span class="chip warn">등록 실패</span>`
+                        : r.state === "fail" && !info.jira_url ? `<span class="note">dry-run</span>` : ""}</td></tr>`).join("")
+        : `<tr><td colspan="5" class="note" style="text-align:center;padding:40px">${run.status === "queued" ? "실행 대기 중이에요" : "해당하는 결과가 없어요"}</td></tr>`}
+      </tbody></table></div>`;
+}
+
+// ---- TC 검토 ----
+let rv = null, rvMsg = "", rvFilter = "all", rvDrawn = null;
+const CONF = { "높음": "pass", "보통": "warn", "검토 필요": "fail" };
+const rinput = $("#rfile");
+rinput.addEventListener("change", () => rinput.files[0] && reviewUpload(rinput.files[0]));
+async function reviewUpload(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  rinput.value = "";
+  await reviewSet(fetch("/api/reviews", { method: "POST", body: fd }));
+}
+async function reviewSet(req) {
+  const r = await req, body = await r.json().catch(() => ({ error: "읽지 못했어요" }));
+  if (r.ok) { rv = body; rvMsg = ""; rvFilter = "all"; } else rvMsg = body.error;
+  rvDrawn = null;
+  renderReview();
+}
+function rvRow(x) {
+  const orig = (x.human_proc || x.human_expect) ? `<div class="orig">${x.human_proc ? `<b>절차</b> ${esc(x.human_proc)}` : ""}${x.human_expect ? `\n<b>기대 결과</b> ${esc(x.human_expect)}` : ""}</div>` : "";
+  let state, body = "", take = "";
+  if (x.state === "ready") {
+    state = `<span class="chip pass">바로 실행</span>`;
+    body = `<pre>${esc(x.steps.join("\n"))}</pre>`;
+  } else if (x.state === "convert") {
+    const sg = x.suggestion, conf = sg.confidence;
+    state = `<span class="chip ${CONF[conf] || "warn"}">변환 ${esc(conf)}</span>`;
+    body = `<label class="sm" for="p${x.row}">자동화 절차</label><textarea id="p${x.row}" data-row="${x.row}" data-k="proc">${esc(sg.proc.join("\n"))}</textarea>
+      <label class="sm" for="e${x.row}">자동화 기대 결과</label><textarea id="e${x.row}" data-row="${x.row}" data-k="expect">${esc(sg.expect.join("\n"))}</textarea>
+      ${sg.notes.length ? `<ul class="notes">${sg.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}`;
+    take = `<label class="take"><input type="checkbox" data-take="${x.row}" ${(x.take ?? conf !== "검토 필요") ? "checked" : ""}> 적용</label>`;
+  } else if (x.state === "invalid") {
+    state = `<span class="chip fail">작성 오류</span>`;
+    body = `<ul class="reason"><li>${esc(x.error)}</li></ul>`;
+  } else {
+    state = `<span class="chip idle">실행 제외</span>`;
+    body = `<span class="meta">실행 칸이 N이라 건너뛰어요</span>`;
+  }
+  return `<tr><td class="id">${esc(x.id)}<div class="meta">행 ${x.row}</div></td>
+    <td><b>${esc(x.name)}</b>${orig}</td><td>${body}</td><td>${state}<div style="margin-top:8px">${take}</div></td></tr>`;
+}
+function rvSync() {  // 다시 그리기 전에 고친 내용과 체크 상태를 데이터에 옮겨 둠
+  if (!rv) return;
+  for (const x of rv.rows) {
+    if (x.state !== "convert") continue;
+    const p = $(`#p${x.row}`), e = $(`#e${x.row}`), t = $(`[data-take="${x.row}"]`);
+    if (p) x.suggestion.proc = p.value.split("\n");
+    if (e) x.suggestion.expect = e.value.split("\n");
+    if (t) x.take = t.checked;
+  }
+}
+function renderReview() {
+  if (rv && rvDrawn === rv && $("#rv-root")) return;  // 실행 상태를 갱신할 때 고치던 내용이 지워지지 않게
+  rvDrawn = rv;
+  const msgHtml = rvMsg ? `<p class="msg" role="alert">${esc(rvMsg)}</p>` : "";
+  if (!rv) {
+    $("#main").innerHTML = `${head("실행 전에 확인", "TC 검토")}${msgHtml}
+      <section class="panel" id="rv-root"><h2>TC 엑셀 검토</h2>
+        <div class="drop rv-drop" id="rdrop" tabindex="0" role="button" aria-label="검토할 엑셀 TC 파일 올리기">
+          <div><strong>검토할 TC 엑셀을 올리세요</strong><small>실행하지 않고, ARIS가 어떻게 읽었는지와 자연어 TC의 변환 제안을 보여줘요</small></div>
+          <span class="btn navy" style="display:inline-flex;align-items:center">파일 고르기</span></div></section>`;
+    bindDrop($("#rdrop"), (f) => reviewUpload(f), rinput);
+    return;
+  }
+  const cnt = (st) => rv.rows.filter((x) => x.state === st).length;
+  const conv = cnt("convert");
+  const shown = rv.rows.filter((x) => rvFilter === "all" || x.state === rvFilter);
+  const F = [["all", "전체", rv.rows.length], ["convert", "변환 필요", conv], ["invalid", "작성 오류", cnt("invalid")], ["ready", "바로 실행", cnt("ready")], ["skipped", "실행 제외", cnt("skipped")]];
+  $("#main").innerHTML = `${head("실행 전에 확인", "TC 검토")}${msgHtml}
+    <section class="panel rv" id="rv-root">
+      <div class="d-head"><h3>${esc(rv.filename)}</h3>${rv.applied ? `<span class="chip pass">변환 적용됨</span>` : ""}<div class="spacer"></div>
+        <button type="button" class="btn ghost" data-act="rv-new">다른 파일</button>
+        <a class="btn ghost" style="display:inline-flex;align-items:center;text-decoration:none" href="/reviews/${esc(rv.id)}/file" aria-disabled="${!rv.applied}">변환 엑셀 받기</a>
+        <button type="button" class="btn navy" data-act="rv-run">이대로 실행</button></div>
+      <div class="tiles">
+        <div class="tile"><b style="color:var(--pass)">${cnt("ready")}</b><span>바로 실행</span></div>
+        <div class="tile"><b style="color:var(--run)">${conv}</b><span>변환 필요</span></div>
+        <div class="tile"><b style="color:var(--fail)">${cnt("invalid")}</b><span>작성 오류</span></div>
+        <div class="tile"><b>${cnt("skipped")}</b><span>실행 제외</span></div></div>
+      ${conv ? `<div class="rv-bar"><p>제안을 확인하고 필요하면 고친 뒤 적용하세요. <b>검토 필요</b>는 기본으로 빠져 있어요(반쪽 변환은 가짜 통과가 날 수 있어서).</p>
+        <button type="button" class="btn yellow" data-act="rv-apply">선택한 변환 적용</button></div>` : ""}
+      <div class="filters">${F.map(([k, l, n]) => `<button type="button" data-rf="${k}" aria-pressed="${rvFilter === k}">${l} ${n}</button>`).join("")}</div>
+      <div class="table-wrap"><table><thead><tr><th>TC ID</th><th>테스트 항목 · 원문</th><th>ARIS 해석 · 변환 제안</th><th>상태</th></tr></thead>
+        <tbody>${shown.map(rvRow).join("") || `<tr><td colspan="4" class="meta">해당하는 TC가 없어요</td></tr>`}</tbody></table></div>
+    </section>`;
+}
+async function reviewApply() {
+  rvSync();
+  const edits = {};
+  for (const x of rv.rows) {
+    if (x.state === "convert" && (x.take ?? x.suggestion.confidence !== "검토 필요"))
+      edits[x.row] = { proc: x.suggestion.proc.join("\n"), expect: x.suggestion.expect.join("\n") };
+  }
+  if (!Object.keys(edits).length) { rvMsg = "적용할 변환을 하나 이상 골라 주세요"; rvDrawn = null; renderReview(); return; }
+  await reviewSet(fetch(`/api/reviews/${rv.id}/apply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ edits }) }));
+}
+async function reviewRun() {
+  armSound();
+  const r = await fetch(`/api/reviews/${rv.id}/run`, { method: "POST" }), body = await r.json().catch(() => ({}));
+  if (!r.ok) { rvMsg = body.error || "실행하지 못했어요"; rvDrawn = null; renderReview(); return; }
+  current = body.id; filter = "all";
+  location.hash = `#/runs/${body.id}`;
+}
+
+// ---- 준비 중 / 설정 ----
+function renderSoon(title, body) {
+  $("#main").innerHTML = `${head("준비 중인 기능", title)}<section class="panel soon-box"><h2>${esc(title)} 화면은 준비 중이에요</h2><p>${body}</p></section>`;
+}
+function renderSettings() {
+  $("#main").innerHTML = `${head("연결과 실행 설정", "설정")}
+    <section class="panel"><h2>Jira 연결</h2><dl class="kv">
+      <dt>상태</dt><dd><span class="chip ${info.jira ? "pass" : "warn"}">${info.jira ? "연결됨" : "미연결 (dry-run)"}</span></dd>
+      <dt>사이트</dt><dd>${info.jira_url ? `<a href="${esc(info.jira_url)}" target="_blank">${esc(info.jira_url)}</a>` : "-"}</dd>
+      <dt>설정 방법</dt><dd>ARIS 폴더의 <span class="mono">jira.env</span>에 주소·이메일·토큰·프로젝트 키를 넣고 <span class="mono">python web.py</span>를 다시 실행하세요.</dd>
+    </dl></section>
+    <section class="panel"><h2>실행 설정</h2><dl class="kv">
+      <dt>위치</dt><dd>TC 엑셀의 '설정' 시트 (웹 주소, 화면 크기, 페이지 로딩 대기, 판정 대기)</dd>
+      <dt>TC 템플릿</dt><dd><a href="/template">TC 템플릿 받기</a></dd>
+    </dl></section>`;
+}
+
+// ---- 화면 전환과 갱신 ----
+function route() {
+  const [, view = "dashboard", id] = location.hash.split("/");
+  if (view === "runs" && id) current = id;
+  return view;
+}
+async function render() {
+  clearTimeout(timer);
+  let failedDraw = false;
+  try { await draw(); }
+  catch (e) {  // 빈 화면으로 멈추지 않게: 이유를 보여주고 잠시 뒤 다시 시도
+    failedDraw = true;
+    console.error(e);
+    setMain(`<div class="empty" role="alert"><strong>화면을 불러오지 못했어요. 3초 뒤 다시 시도해요</strong>
+      <span style="font-family:var(--mono);font-size:12px">${esc(String(e && e.message || e))}</span></div>`);
+  }
+  finally {  // 화면 그리기나 통신이 한 번 실패해도 실행 중이면 계속 확인해야 완료 알림이 옴
+    clearTimeout(timer);
+    if (watching.size || failedDraw) timer = setTimeout(render, failedDraw ? 3000 : 1500);
+  }
+}
+async function draw() {
+  runs = await get("/api/runs").then(json);
+  for (const r of runs) {  // 실행 중이던 것이 끝나면 한 번만 알림
+    if (r.status === "queued" || r.status === "running") watching.add(r.id);
+    else if (watching.delete(r.id)) announce(r);
+  }
+  const view = route();
+  document.querySelectorAll("#nav a").forEach((a) => a.dataset.view === view ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  const review = latestPerFile().reduce((a, r) => a + (r.convert || 0), 0);
+  $("#review-badge").hidden = !review;
+  $("#review-badge").textContent = review;
+  if (view === "runs") await renderRuns();
+  else if (view === "review") renderReview();
+  else if (view === "issues") renderSoon("이슈", info.jira_url ? `등록된 이슈는 <a href="${esc(info.jira_url)}" target="_blank">Jira</a>에서 확인할 수 있어요. 실행별 이슈 번호는 '실행' 화면의 이슈 칸에 있어요.` : "Jira를 연결하면 실패한 TC가 이슈로 등록돼요. '설정'에서 방법을 확인하세요.");
+  else if (view === "reports") renderSoon("리포트", "실행 결과를 보고용으로 정리한 리포트(HTML·PDF)가 들어올 예정이에요. 지금은 '실행' 화면에서 결과 엑셀을 받을 수 있어요.");
+  else if (view === "settings") renderSettings();
+  else await renderDashboard();
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });  // 잠든 탭이 깨어나면 바로 확인
+function removeRun(id) {
+  const run = runs.find((r) => r.id === id), dlg = $("#ask");
+  $("#ask-name").textContent = run ? run.filename : id;
+  $("#ask-meta").textContent = run ? `${run.created.replace("T", " ")} · ${run.passed}/${run.total ?? 0} 통과` : "";
+  $("#ask-err").hidden = true;
+  dlg.returnValue = "";
+  dlg.onclose = null;
+  dlg.showModal();
+  $("#ask .btn.ghost").focus();  // 실수로 Enter를 눌러도 지워지지 않게 '취소'에 먼저 초점
+  $("#ask-ok").onclick = async (e) => {
+    e.preventDefault();  // 실패하면 창을 닫지 않고 이유를 보여줌
+    const r = await fetch(`/api/runs/${id}`, { method: "DELETE" });
+    if (!r.ok) {
+      $("#ask-err").textContent = (await r.json().catch(() => ({}))).error || "지우지 못했어요";
+      $("#ask-err").hidden = false;
+      return;
+    }
+    dlg.close("ok");
+    current = null;
+    location.hash = "#/runs";
+    render();
+  };
+}
+$("#ask").addEventListener("click", (e) => { if (e.target.id === "ask") e.target.close("cancel"); });  // 바깥 클릭으로 닫기
+$("#main").addEventListener("click", (e) => {
+  const run = e.target.closest("[data-run]"), f = e.target.closest("button[data-f]"), pick = e.target.closest("[data-act=pick]");
+  const del = e.target.closest("[data-act=delete]"), act = e.target.closest("[data-act]")?.dataset.act, rf = e.target.closest("[data-rf]");
+  if (del) { removeRun(del.dataset.id); return; }
+  if (act === "rv-new") { rv = null; rvMsg = ""; rvDrawn = null; renderReview(); return; }
+  if (act === "rv-apply") { reviewApply(); return; }
+  if (act === "rv-run") { reviewRun(); return; }
+  if (rf) { rvSync(); rvFilter = rf.dataset.rf; rvDrawn = null; renderReview(); return; }
+  if (pick) input.click();
+  else if (run && run.dataset.run) { current = run.dataset.run; filter = "all"; location.hash = `#/runs/${current}`; }
+  else if (f) { filter = f.dataset.f; render(); }
+});
+window.addEventListener("hashchange", () => { msg = ""; render(); });
+fetch("/api/info").then((r) => r.json()).then((i) => {
+  info = i;
+  const j = $("#jira");
+  j.className = "jira " + (i.jira ? "on" : "off");
+  j.innerHTML = i.jira ? "<b>Jira 연결됨</b><br>실패하면 이슈를 자동으로 등록해요" : "<b>Jira 미연결 (dry-run)</b><br>설정에서 연결 방법을 확인하세요";
+  render();
+});
+</script>
+</body>
+</html>

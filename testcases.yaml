@@ -1,0 +1,53 @@
+# 유형별 설정
+api:
+  base_url: https://jsonplaceholder.typicode.com   # 공개 연습용 API
+web:
+  base_url: https://demo.playwright.dev            # 공개 연습용 웹앱
+  headless: true                                   # false면 브라우저 화면이 보임
+
+cases:
+  # ---------- API ----------
+  - id: API-001
+    name: 게시글 단건 조회
+    method: GET
+    path: /posts/1
+    expect:
+      status: 200
+      max_ms: 3000
+      json: { id: 1, userId: 1 }
+
+  - id: API-002
+    name: 게시글 작성
+    method: POST
+    path: /posts
+    body: { title: 자동화 테스트, userId: 1 }
+    expect:
+      status: 201
+      json: { title: 자동화 테스트 }
+
+  # 의도적 실패: Jira 이슈 자동 등록 시연용
+  - id: API-003
+    name: 사용자 이름 확인
+    method: GET
+    path: /users/1
+    expect:
+      status: 200
+      json: { name: 김도원 }
+
+  # ---------- 웹 ----------
+  - id: WEB-001
+    type: web
+    name: 할 일 추가
+    steps:
+      - goto: /todomvc
+      - fill: .new-todo
+        text: 보고서 작성
+      - press: Enter
+      - expect_text: 보고서 작성
+      - expect_text: 1 item left
+
+  # ---------- 직접 작성한 스크립트 ----------
+  - id: SCR-001
+    type: script
+    name: 전체 사용자 이메일 형식 검증
+    script: scripts/check_user_emails.py

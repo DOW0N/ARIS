@@ -1,0 +1,19 @@
+# 앱 테스트 예시 (Android, Appium 서버와 에뮬레이터/실기기 필요)
+# 로케이터: ~접근성ID / id=리소스ID / xpath=XPath
+app:
+  server: http://127.0.0.1:4723
+  capabilities:
+    platformName: Android
+    appium:automationName: UiAutomator2
+    appium:deviceName: emulator-5554
+    appium:appPackage: com.android.settings
+    appium:appActivity: .Settings
+
+cases:
+  - id: APP-001
+    type: app
+    name: 설정 앱 진입 후 메뉴 확인
+    steps:
+      - expect_text: 설정
+      - click: xpath=//*[@text='디스플레이']
+      - expect_text: 밝기

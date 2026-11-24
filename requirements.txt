@@ -1,0 +1,6 @@
+requests
+PyYAML
+openpyxl
+flask
+playwright
+Appium-Python-Client
