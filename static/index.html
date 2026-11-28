@@ -139,6 +139,15 @@
   .soon-box p { margin: 0; color: var(--muted); }
   .kv { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px 16px; padding: 22px; font-size: 14px; }
   .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .env { padding: 20px 22px; display: grid; gap: 14px; }
+  .env-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .env-head p { margin: 0; color: var(--muted); font-size: 14px; }
+  .env-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .env-list li { display: grid; grid-template-columns: 88px 170px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+  .env-list li b { font-weight: 700; } .env-list li span.d { color: var(--muted); overflow-wrap: anywhere; }
+  .env-list .chip { justify-self: start; }
+  .jira a { color: inherit; font-weight: 700; }
+  @media (max-width: 720px) { .env-list li { grid-template-columns: 1fr; gap: 4px; } }
 
   @media (max-width: 1080px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 860px) {
@@ -583,8 +592,29 @@ async function reviewRun() {
 function renderSoon(title, body) {
   $("#main").innerHTML = `${head("준비 중인 기능", title)}<section class="panel soon-box"><h2>${esc(title)} 화면은 준비 중이에요</h2><p>${body}</p></section>`;
 }
+// ---- 환경 점검: 실행 전에 Jira·브라우저·Appium·기기 상태를 한 번에 ----
+let envItems = null, envBusy = false;
+const ENV_CHIP = { ok: ["pass", "정상"], warn: ["warn", "확인 필요"], fail: ["fail", "문제"] };
+function envHtml() {
+  const list = envItems ? `<ul class="env-list">${envItems.map((it) => {
+    const [cls, label] = ENV_CHIP[it.state] || ENV_CHIP.warn;
+    return `<li><span class="chip ${cls}">${label}</span><b>${esc(it.name)}</b><span class="d">${esc(it.detail)}</span></li>`;
+  }).join("")}</ul>` : "";
+  return `<section class="panel"><h2>환경 점검</h2><div class="env">
+    <div class="env-head"><p>실행 전에 Jira · 브라우저 · Appium · Android 기기가 준비됐는지 한 번에 확인해요. 앱 TC는 Appium이 꺼져 있으면 실행 전에 멈춰요.</p>
+    <button class="btn navy" id="env-run" type="button" ${envBusy ? 'aria-disabled="true"' : ""}>${envBusy ? "점검 중… (최대 20초)" : envItems ? "다시 점검" : "지금 점검"}</button></div>
+    <div aria-live="polite">${list}</div></div></section>`;
+}
+async function runEnv() {
+  if (envBusy) return;
+  envBusy = true; renderSettings();
+  try { envItems = (await get("/api/env").then(json)).items; }
+  catch (e) { envItems = [{ name: "점검", state: "fail", detail: String(e && e.message || e) }]; }
+  envBusy = false;
+  if (route() === "settings") renderSettings();
+}
 function renderSettings() {
-  $("#main").innerHTML = `${head("연결과 실행 설정", "설정")}
+  $("#main").innerHTML = `${head("연결과 실행 설정", "설정")}${envHtml()}
     <section class="panel"><h2>Jira 연결</h2><dl class="kv">
       <dt>상태</dt><dd><span class="chip ${info.jira ? "pass" : "warn"}">${info.jira ? "연결됨" : "미연결 (dry-run)"}</span></dd>
       <dt>사이트</dt><dd>${info.jira_url ? `<a href="${esc(info.jira_url)}" target="_blank">${esc(info.jira_url)}</a>` : "-"}</dd>
@@ -594,6 +624,7 @@ function renderSettings() {
       <dt>위치</dt><dd>TC 엑셀의 '설정' 시트 (웹 주소, 화면 크기, 페이지 로딩 대기, 판정 대기)</dd>
       <dt>TC 템플릿</dt><dd><a href="/template">TC 템플릿 받기</a></dd>
     </dl></section>`;
+  $("#env-run").onclick = runEnv;
 }
 
 // ---- 화면 전환과 갱신 ----
@@ -678,6 +709,7 @@ fetch("/api/info").then((r) => r.json()).then((i) => {
   const j = $("#jira");
   j.className = "jira " + (i.jira ? "on" : "off");
   j.innerHTML = i.jira ? "<b>Jira 연결됨</b><br>실패하면 이슈를 자동으로 등록해요" : "<b>Jira 미연결 (dry-run)</b><br>설정에서 연결 방법을 확인하세요";
+  j.innerHTML += '<br><a href="#/settings">환경 점검 →</a>';
   render();
 });
 </script>

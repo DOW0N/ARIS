@@ -95,7 +95,7 @@ def worker():
                                           on_result=on_result, on_parsed=on_parsed)
             update(d, status="done", output=out.name, finished=datetime.now().isoformat(timespec="seconds"))
         except Exception as e:  # 엑셀 형식 오류 등: 화면에 이유를 보여준다
-            update(d, status="error", error=f"{type(e).__name__}: {e}",
+            update(d, status="error", error=str(e) if isinstance(e, aris.EnvError) else f"{type(e).__name__}: {e}",
                    finished=datetime.now().isoformat(timespec="seconds"))
         finally:
             jobs.task_done()
@@ -134,6 +134,11 @@ def uploaded_xlsx():
     if not f or not f.filename.lower().endswith(".xlsx"):
         abort(400, ".xlsx 파일을 올려주세요")
     return f
+
+
+@app.get("/api/env")
+def env_check():
+    return {"items": aris.check_env()}
 
 
 @app.post("/api/runs")

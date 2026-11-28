@@ -287,11 +287,19 @@ blk = aris.run_suite({"web": {"base_url": base, "timeout_ms": 300}, "cases": [
 assert blk[0]["issue"] is None and "이슈 등록 안 함" in blk[0]["issue_error"]  # 차단은 이슈로 올리지 않음
 assert blk[0]["errors"][0].startswith("1단계 이동 실패: 사이트가 응답을 거부함 (HTTP 403"), blk[0]["errors"]
 
-# Appium 서버가 꺼져 있으면 앱 결함이 아니므로 이슈로 올리지 않음
-real_app = aris.RUNNERS["app"]
+# 앱 TC가 있는데 Appium이 꺼져 있으면 실행 전에 멈춤 (가짜 실패·가짜 이슈 방지)
+app_suite = {"app": {"server": "http://127.0.0.1:9"}, "cases": [{"id": "X1", "type": "app", "name": "서버 꺼짐", "steps": []}]}
+try:
+    aris.run_suite(app_suite, ".")
+    raise AssertionError("Appium이 꺼져 있는데 실행됨")
+except aris.EnvError as e:
+    assert "appium을 켠 뒤" in str(e)
+# 실행 도중 Appium이 끊긴 경우에도 앱 결함이 아니므로 이슈로 올리지 않음
+real_app, real_up = aris.RUNNERS["app"], aris.appium_up
 aris.RUNNERS["app"] = lambda case, cfg, ctx: (["Appium 연결 실패: 연결 거부 (Appium 서버와 에뮬레이터가 켜져 있는지 확인하세요)"], "", None)
-off = aris.run_suite({"cases": [{"id": "X1", "type": "app", "name": "서버 꺼짐", "steps": []}]}, ".")
-aris.RUNNERS["app"] = real_app
+aris.appium_up = lambda server: True
+off = aris.run_suite(app_suite, ".")
+aris.RUNNERS["app"], aris.appium_up = real_app, real_up
 assert off[0]["issue"] is None and "이슈 등록 안 함" in off[0]["issue_error"], off
 
 # 연속 실패가 쌓이면(사이트 차단 등) 이후 이슈 등록 보류 — 가짜 이슈가 쏟아지지 않게
@@ -556,6 +564,13 @@ class FakeJira(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(out, ensure_ascii=False).encode())
 
+    def do_GET(self):  # 환경 점검: 프로젝트 조회
+        ok = self.path == "/rest/api/3/project/QA"
+        self.send_response(200 if ok else 404)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"key": "QA", "name": "ARIS"} if ok else {}).encode())
+
     def log_message(self, *args):
         pass
 
@@ -581,8 +596,18 @@ assert "priority" not in aris.issue_fields({**web_bad, "severity": "애매"}, {}
 jira["no_priority"] = True
 r4 = aris.run_suite({"web": {"base_url": base, "timeout_ms": 1500}, "cases": [{**web_bad, "id": "W9", "severity": "최상"}]}, ".")[0]
 assert r4["issue"] and "priority" not in jira["issues"][r4["issue"]], r4
+# 환경 점검: Jira 연결·프로젝트 확인, Appium이 꺼져 있으면 경고
+env = {i["name"]: i for i in aris.check_env("http://127.0.0.1:9")}
+assert env["Jira"]["state"] == "ok" and "프로젝트 QA (ARIS)" in env["Jira"]["detail"], env["Jira"]
+assert env["브라우저 (웹 TC)"]["state"] == "ok", env["브라우저 (웹 TC)"]
+assert env["Appium (앱 TC)"]["state"] == "warn" and "appium을 켜" in env["Appium (앱 TC)"]["detail"]
+assert env["Android 기기 (앱 TC)"]["state"] in ("ok", "warn")
+os.environ["JIRA_PROJECT"] = "NOPE"
+assert aris.check_env("http://127.0.0.1:9")[0]["state"] == "fail"
+os.environ["JIRA_PROJECT"] = "QA"
 for k in ("JIRA_URL", "JIRA_EMAIL", "JIRA_TOKEN", "JIRA_PROJECT", "JIRA_ISSUE_TYPE"):
     os.environ.pop(k)
+assert aris.check_env("http://127.0.0.1:9")[0]["state"] == "warn"  # jira.env 없음 = dry-run
 # 앱: 가짜 Appium 드라이버(화면 XML + xpath)로 로그인/비로그인 흐름 검증
 from lxml import etree
 

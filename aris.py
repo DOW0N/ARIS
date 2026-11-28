@@ -9,6 +9,8 @@ import importlib.util
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -573,7 +575,7 @@ def run_app(case, cfg, ctx):
     opts = AppiumOptions()
     opts.load_capabilities({**APP_DEFAULTS, **cfg.get("capabilities", {})})
     try:  # 케이스마다 새 세션: 앱 데이터가 초기화돼 항상 같은 상태(비로그인)에서 시작
-        driver = webdriver.Remote(cfg.get("server", "http://127.0.0.1:4723"), options=opts)
+        driver = webdriver.Remote(cfg.get("server", APPIUM_SERVER), options=opts)
     except Exception as e:
         return [f"Appium 연결 실패: {str(e).splitlines()[0]} (Appium 서버와 에뮬레이터가 켜져 있는지 확인하세요)"], "", None
     driver.implicitly_wait(cfg.get("timeout_ms", 5000) / 1000)
@@ -719,10 +721,91 @@ def report_to_jira(fields, case_id, screenshot):
 
 
 # ---------------- 실행 ----------------
+# ---------------- 환경 점검 ----------------
+APPIUM_SERVER = "http://127.0.0.1:4723"
+
+
+class EnvError(Exception):
+    """테스트 환경이 준비되지 않아 실행을 시작하지 않음 (제품 결함 아님)."""
+
+
+def appium_up(server):
+    try:
+        return requests.get(f"{server.rstrip('/')}/status", timeout=3).ok
+    except requests.RequestException:
+        return False
+
+
+def find_adb():
+    sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+    local = Path(sdk, "platform-tools", "adb.exe" if os.name == "nt" else "adb") if sdk else None
+    return shutil.which("adb") or (str(local) if local and local.exists() else None)
+
+
+def check_env(server=APPIUM_SERVER):
+    """실행 전 환경을 한 번에 확인한다. 항목마다 {name, state: ok/warn/fail, detail}."""
+    out = []
+    add = lambda name, state, detail: out.append({"name": name, "state": state, "detail": detail})
+
+    env = {k: os.environ.get(k) for k in ("JIRA_URL", "JIRA_EMAIL", "JIRA_TOKEN", "JIRA_PROJECT")}
+    if not all(env.values()):
+        add("Jira", "warn", "jira.env가 없어 dry-run으로 동작해요. 실패해도 이슈는 등록되지 않아요")
+    else:
+        url, key = env["JIRA_URL"].rstrip("/"), env["JIRA_PROJECT"]
+        try:
+            r = JIRA.get(f"{url}/rest/api/3/project/{key}", auth=(env["JIRA_EMAIL"], env["JIRA_TOKEN"]), timeout=8)
+            if r.ok:
+                add("Jira", "ok", f"{url} · 프로젝트 {key} ({r.json().get('name', '')})")
+            elif r.status_code in (401, 403):
+                add("Jira", "fail", "로그인 실패: jira.env의 이메일과 API 토큰을 확인하세요")
+            elif r.status_code == 404:
+                add("Jira", "fail", f"프로젝트 {key}를 찾지 못함: jira.env의 프로젝트 키를 확인하세요")
+            else:
+                add("Jira", "fail", f"Jira 응답 {r.status_code}")
+        except requests.RequestException as e:
+            add("Jira", "fail", f"Jira 주소에 접속하지 못함 ({type(e).__name__}): jira.env의 주소와 인터넷 연결을 확인하세요")
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            version = b.version
+            b.close()
+        add("브라우저 (웹 TC)", "ok", f"Chromium {version} 실행 가능")
+    except Exception as e:
+        add("브라우저 (웹 TC)", "fail", f"브라우저를 열지 못함: {str(e).splitlines()[0][:120]}")
+
+    if appium_up(server):
+        add("Appium (앱 TC)", "ok", f"{server} 응답함")
+    else:
+        add("Appium (앱 TC)", "warn", f"{server} 응답 없음 → 앱 TC를 돌리려면 터미널에서 appium을 켜 주세요")
+
+    adb = find_adb()
+    if not adb:
+        add("Android 기기 (앱 TC)", "warn", "adb를 찾지 못함 → Android SDK의 platform-tools를 PATH에 넣어 주세요")
+    else:
+        try:
+            lines = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=8).stdout.splitlines()[1:]
+            rows = [l.split() for l in lines if l.strip()]
+            ready = [r[0] for r in rows if len(r) > 1 and r[1] == "device"]
+            other = [f"{r[0]}({r[1]})" for r in rows if len(r) > 1 and r[1] != "device"]
+            if ready:
+                add("Android 기기 (앱 TC)", "ok", f"연결됨: {', '.join(ready)}" + (f" · 확인 필요: {', '.join(other)}" if other else ""))
+            else:
+                add("Android 기기 (앱 TC)", "warn", "연결된 기기 없음" + (f" ({', '.join(other)})" if other else "") + " → 에뮬레이터를 켜고 adb devices로 확인하세요")
+        except subprocess.TimeoutExpired:
+            add("Android 기기 (앱 TC)", "warn", "adb가 응답하지 않음 → taskkill /F /IM adb.exe 후 adb devices를 다시 실행하세요")
+    return out
+
+
 def run_suite(suite, suite_dir, on_result=None):
     """케이스를 모두 실행하고 결과 목록을 돌려준다. YAML/엑셀 입력 모두 이 함수를 쓴다.
     on_result(result)는 케이스 하나가 끝날 때마다 호출된다(웹 화면 진행률용)."""
     ctx = {"suite_dir": suite_dir}
+    server = suite.get("app", {}).get("server", APPIUM_SERVER)
+    if any(c.get("type") == "app" for c in suite["cases"]) and not appium_up(server):
+        # 꺼진 채로 돌리면 모든 앱 TC가 연결 실패로 끝나므로 시작 전에 멈춘다
+        raise EnvError(f"Appium 서버({server})가 응답하지 않아 실행하지 않았어요. 터미널에서 appium을 켠 뒤 다시 실행하세요")
     project = os.environ.get("JIRA_PROJECT", "DEMO")
     results = []
     pause_after = suite.get("issue_pause", 5)  # 연속 실패가 이만큼 쌓이면 이후 이슈 등록을 보류 (0이면 끄기)
